@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CS 2480: Computer Graphics</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+        
+        input {
+            width: 800px;
+        }
+
+        label {
+            display: inline-block;
+            width: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id='webgl-scene' width='800' height='800'>
+		Your browser dose not support HTML 5
+    </canvas>
+    <br/>
+    <input type="range" min="3" max="100" name="range" value="3">
+    <p>
+        Number of Lines: 
+        <span id="number"></span>
+
+        <label for="none">None: 
+            <input type="radio" id"none" name="color" value=null checked>
+        </label>
+
+        <label for="red">Red:
+            <input type="radio" id"red" name="color" value="[1.0, 0.0, 0.0, 1.0]">
+        </label>
+
+        <label for="blue">Blue:
+            <input type="radio" id"blue" name="color" value="[0.0, 1.0, 0.0, 1.0]">
+        </label>
+
+        <label for="green">Green:
+            <input type="radio" id"green" name="color" value="[0.0, 0.0, 1.0, 1.0]">
+        </label>
+    </p>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <!-- Vertex Shader -->
+    <script id="shader-vs" type="x-shader/x-vertex">
+        attribute vec3 coordinates; attribute vec3 colors; varying vec4 vColor; void main(void) { gl_Position = vec4(coordinates, 1.0); gl_PointSize = 5.0; vColor = vec4(colors, 0.9); }
+    </script>
+    <!-- Fragment Shader -->
+    <script id="shader-fs" type="x-shader/x-fragment">
+        varying mediump vec4 vColor; void main(void) { gl_FragColor = vColor; }
+    </script>
+    <script src="./webgl_Helper.js"></script>
+    <!-- canvas script -->
+    <script>
+        $(document).ready(() => {
+            var canvas = $("#webgl-scene")[0];
+            var gl = initWebGL(canvas);
+            var program = initShaders(gl, $("#shader-vs").text(), $("#shader-fs").text());
+            gl.useProgram(program);
+
+            var drawNGon = (n, startAngle, colorIn) => {
+                //clear data
+                var vertices = [];
+                var ngon = [];
+                // use this function to one day set patterns
+                var getColor = ()=>{
+                    return (colorIn == null || colorIn == "" ? [Math.random(), Math.random(), Math.random(), Math.random()] : colorIn)
+                };
+                
+                // set number of lines
+                $('#number').text(n);
+                $('input[name=range]').val(n);
+
+                // get change in angle in radians
+                var theta = ((360 / n) * Math.PI / 180);
+                var newTheta = startAngle != null ? startAngle : 0.0;
+
+                for (num = 0; num <= n; num++) {
+                    console.log(num, newTheta, vertices);
+                    nextPoint = [0.8*Math.cos(newTheta), 0.8*Math.sin(newTheta), 0.0];
+                    vertices.push(nextPoint);
+
+                    // run through each point in vertices
+                    vertices.forEach((element)=>{
+                        ngon = ngon.concat(
+                            element, 
+                            getColor(), 
+                            nextPoint, 
+                            getColor()
+                        );
+                    });
+                    
+                    newTheta = (newTheta + theta) % (2 * Math.PI);
+                }
+
+                console.log(ngon);
+
+                initBuffers(gl, program, [{
+                    name: "coordinates",
+                    size: 3,
+                    data: ngon
+                        // data format
+                        // [0.0, 0.5, 0.0, // vertex 
+                        // Math.random(), Math.random(), Math.random(), //color
+                        // Math.random(), // alpha]
+                        ,
+                    stride: 7,
+                    offset: 0,
+                }, {
+                    name: "colors",
+                    size: 3,
+                    stride: 7,
+                    offset: 3,
+                }, {
+                    name: "alpha",
+                    size: 1,
+                    stride: 7,
+                    offset: 6,
+                }]);
+
+
+                gl.drawArrays(gl.LINES, 0, ngon.length / 7);
+            };
+
+            var interval;
+            $('input[name=range]').on('change', (e) => {
+                clearInterval(interval);
+                var n = $('input[name=range]').val()
+                drawNGon(n, null, null);
+            });
+
+            drawNGon(3);
+            var countUP = true;
+            var n = 3;
+            interval = setInterval(function(){
+                if(countUP){
+                    if(n==70)
+                        countUP = false;
+                    n++;
+                } else {
+                    if(n==3)
+                        countUP = true;
+                    n--;
+                }
+                drawNGon(n, Math.random()*6, null);
+            }, 100);
+        });
+
+        
+    </script>
+
+</body>
+
+</html>
